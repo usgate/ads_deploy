@@ -15,7 +15,7 @@ on:
         type: string
         description: Branch, tag, or commit from the private app repo
         required: true
-        default: main
+        default: master
 
 permissions:
   contents: read
@@ -99,4 +99,3 @@ jobs:
           set -euo pipefail
           chmod +x .github/scripts/deploy-backend.sh
           .github/scripts/deploy-backend.sh "$TARGET" "$BACKEND_JAR"
-

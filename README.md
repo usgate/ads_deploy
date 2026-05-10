@@ -54,7 +54,7 @@ VITE_API_BASE_URL=http://ad.520531.xyz/ug-ads
 触发参数：
 
 - `target`：选择 `api` 或 `analytics`
-- `ref`：私有 `ug-ads` 仓库的分支、tag 或 commit，默认 `main`
+- `ref`：私有 `ug-ads` 仓库的分支、tag 或 commit，默认 `master`
 
 执行内容：
 
@@ -71,7 +71,7 @@ VITE_API_BASE_URL=http://ad.520531.xyz/ug-ads
 
 触发参数：
 
-- `ref`：私有 `ug-ads` 仓库的分支、tag 或 commit，默认 `main`
+- `ref`：私有 `ug-ads` 仓库的分支、tag 或 commit，默认 `master`
 
 执行内容：
 
@@ -125,4 +125,3 @@ VITE_API_BASE_URL=http://ad.520531.xyz/ug-ads
 4. 运行 `Deploy Frontend`，部署后台前端
 
 通常建议先部署 `analytics` 后端，再部署前端。
-
