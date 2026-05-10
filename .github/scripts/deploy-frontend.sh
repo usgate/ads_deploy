@@ -38,9 +38,16 @@ SSH_OPTS=(
   -o StrictHostKeyChecking=accept-new
 )
 
+SCP_OPTS=(
+  -i "$KEY_FILE"
+  -P "$PORT"
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new
+)
+
 REMOTE_TMP="/tmp/ug-ads-vue-dist.tar.gz"
 
-scp "${SSH_OPTS[@]}" "$ARCHIVE" "${SSH_USER}@${HOST}:${REMOTE_TMP}"
+scp "${SCP_OPTS[@]}" "$ARCHIVE" "${SSH_USER}@${HOST}:${REMOTE_TMP}"
 
 ssh "${SSH_OPTS[@]}" "${SSH_USER}@${HOST}" \
   "REMOTE_TMP='$REMOTE_TMP' ANALYTICS_DOMAIN='$ANALYTICS_DOMAIN' ADMIN_DOMAIN='$ADMIN_DOMAIN' bash -s" <<'REMOTE_SCRIPT'

@@ -62,9 +62,16 @@ SSH_OPTS=(
   -o StrictHostKeyChecking=accept-new
 )
 
+SCP_OPTS=(
+  -i "$KEY_FILE"
+  -P "$PORT"
+  -o IdentitiesOnly=yes
+  -o StrictHostKeyChecking=accept-new
+)
+
 REMOTE_TMP="/tmp/${SERVICE_NAME}.jar.new"
 
-scp "${SSH_OPTS[@]}" "$JAR_FILE" "${SSH_USER}@${HOST}:${REMOTE_TMP}"
+scp "${SCP_OPTS[@]}" "$JAR_FILE" "${SSH_USER}@${HOST}:${REMOTE_TMP}"
 
 ssh "${SSH_OPTS[@]}" "${SSH_USER}@${HOST}" \
   "SERVICE_NAME='$SERVICE_NAME' REMOTE_JAR='$REMOTE_JAR' REMOTE_TMP='$REMOTE_TMP' SPRING_PROFILE='$SPRING_PROFILE' CADDY_KIND='$CADDY_KIND' API_DOMAIN='$API_DOMAIN' ANALYTICS_DOMAIN='$ANALYTICS_DOMAIN' ADMIN_DOMAIN='$ADMIN_DOMAIN' bash -s" <<'REMOTE_SCRIPT'
