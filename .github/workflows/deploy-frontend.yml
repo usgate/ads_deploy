@@ -1,0 +1,85 @@
+name: Deploy Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        description: Branch, tag, or commit from the private app repo
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP_GIT_URL: ${{ secrets.APP_GIT_URL }}
+      APP_REPO_SSH_KEY: ${{ secrets.APP_REPO_SSH_KEY }}
+      LEGACY_SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      APP_REF: ${{ github.event.inputs.ref }}
+      ANALYTICS_HOST: ${{ secrets.ANALYTICS_HOST }}
+      ANALYTICS_SSH_PRIVATE_KEY: ${{ secrets.ANALYTICS_SSH_PRIVATE_KEY }}
+      ANALYTICS_SSH_PORT: ${{ secrets.ANALYTICS_SSH_PORT }}
+
+    steps:
+      - name: Checkout deploy scripts
+        uses: actions/checkout@v4
+
+      - name: Prepare clone key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ssh"
+          if [ -n "${APP_REPO_SSH_KEY:-}" ]; then
+            printf '%s\n' "$APP_REPO_SSH_KEY" > "$RUNNER_TEMP/ssh/app_repo_key"
+          elif [ -n "${LEGACY_SSH_PRIVATE_KEY:-}" ]; then
+            printf '%s\n' "$LEGACY_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/app_repo_key"
+          else
+            echo "APP_REPO_SSH_KEY is required. SSH_PRIVATE_KEY is accepted only as a legacy fallback." >&2
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/ssh/app_repo_key"
+
+      - name: Clone private app repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_GIT_URL:-}" ]; then
+            echo "APP_GIT_URL is required." >&2
+            exit 1
+          fi
+          mkdir app-src
+          cd app-src
+          git init
+          git remote add origin "$APP_GIT_URL"
+          GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/ssh/app_repo_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            git fetch --depth 1 origin "$APP_REF"
+          git checkout --detach FETCH_HEAD
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app-src/ug-ads-vue/package-lock.json
+
+      - name: Build frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app-src/ug-ads-vue
+          npm ci
+          npm run build
+          tar -czf "$RUNNER_TEMP/ug-ads-vue-dist.tar.gz" -C dist .
+          echo "FRONTEND_ARCHIVE=$RUNNER_TEMP/ug-ads-vue-dist.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Deploy frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/deploy-frontend.sh
+          .github/scripts/deploy-frontend.sh "$FRONTEND_ARCHIVE"
+

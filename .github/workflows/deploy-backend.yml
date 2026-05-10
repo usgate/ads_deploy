@@ -1,0 +1,102 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        description: Backend target
+        required: true
+        default: api
+        options:
+          - api
+          - analytics
+      ref:
+        type: string
+        description: Branch, tag, or commit from the private app repo
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      APP_GIT_URL: ${{ secrets.APP_GIT_URL }}
+      APP_REPO_SSH_KEY: ${{ secrets.APP_REPO_SSH_KEY }}
+      LEGACY_SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      APP_REF: ${{ github.event.inputs.ref }}
+      TARGET: ${{ github.event.inputs.target }}
+      API_HOST: ${{ secrets.API_HOST }}
+      API_SSH_PRIVATE_KEY: ${{ secrets.API_SSH_PRIVATE_KEY }}
+      API_SSH_PORT: ${{ secrets.API_SSH_PORT }}
+      ANALYTICS_HOST: ${{ secrets.ANALYTICS_HOST }}
+      ANALYTICS_SSH_PRIVATE_KEY: ${{ secrets.ANALYTICS_SSH_PRIVATE_KEY }}
+      ANALYTICS_SSH_PORT: ${{ secrets.ANALYTICS_SSH_PORT }}
+
+    steps:
+      - name: Checkout deploy scripts
+        uses: actions/checkout@v4
+
+      - name: Prepare clone key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ssh"
+          if [ -n "${APP_REPO_SSH_KEY:-}" ]; then
+            printf '%s\n' "$APP_REPO_SSH_KEY" > "$RUNNER_TEMP/ssh/app_repo_key"
+          elif [ -n "${LEGACY_SSH_PRIVATE_KEY:-}" ]; then
+            printf '%s\n' "$LEGACY_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/ssh/app_repo_key"
+          else
+            echo "APP_REPO_SSH_KEY is required. SSH_PRIVATE_KEY is accepted only as a legacy fallback." >&2
+            exit 1
+          fi
+          chmod 600 "$RUNNER_TEMP/ssh/app_repo_key"
+
+      - name: Clone private app repo
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_GIT_URL:-}" ]; then
+            echo "APP_GIT_URL is required." >&2
+            exit 1
+          fi
+          mkdir app-src
+          cd app-src
+          git init
+          git remote add origin "$APP_GIT_URL"
+          GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/ssh/app_repo_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            git fetch --depth 1 origin "$APP_REF"
+          git checkout --detach FETCH_HEAD
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: app-src/ug-ads-boot/pom.xml
+
+      - name: Build backend jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app-src/ug-ads-boot
+          mvn -B -DskipTests -P"$TARGET" clean package
+          JAR_PATH="$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*sources*' ! -name '*javadoc*' | head -n 1)"
+          if [ -z "$JAR_PATH" ]; then
+            echo "No backend jar found under ug-ads-boot/target." >&2
+            exit 1
+          fi
+          cp "$JAR_PATH" "$RUNNER_TEMP/ug-ads-backend.jar"
+          echo "BACKEND_JAR=$RUNNER_TEMP/ug-ads-backend.jar" >> "$GITHUB_ENV"
+
+      - name: Deploy backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/deploy-backend.sh
+          .github/scripts/deploy-backend.sh "$TARGET" "$BACKEND_JAR"
+
