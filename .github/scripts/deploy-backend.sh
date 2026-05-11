@@ -161,7 +161,9 @@ wait_for_backend_ready() {
   local attempt=1
 
   while [ "$attempt" -le "$max_attempts" ]; do
+    echo "check server health, attempt $attempt/$max_attempts..."
     if [ "$(curl -fsS --max-time 2 http://127.0.0.1:8080/ug-ads/api/open/ping 2>/dev/null || true)" = "pong" ]; then
+      echo "start succeeded"
       return 0
     fi
 
