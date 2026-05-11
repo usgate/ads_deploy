@@ -18,6 +18,7 @@ case "$TARGET" in
     REMOTE_JAR="/app/ug-ads-api.jar"
     SPRING_PROFILE="api"
     CADDY_KIND="api"
+    JAVA_OPTS="-Xms512m -Xmx2500m"
     ;;
   analytics)
     HOST="${ANALYTICS_HOST:-}"
@@ -27,6 +28,7 @@ case "$TARGET" in
     REMOTE_JAR="/app/ug-ads-analytics.jar"
     SPRING_PROFILE="analytics"
     CADDY_KIND="analytics"
+    JAVA_OPTS="-Xms512m -Xmx3000m"
     ;;
   *)
     echo "Unsupported target: $TARGET" >&2
@@ -74,7 +76,7 @@ REMOTE_TMP="/tmp/${SERVICE_NAME}.jar.new"
 scp "${SCP_OPTS[@]}" "$JAR_FILE" "${SSH_USER}@${HOST}:${REMOTE_TMP}"
 
 ssh "${SSH_OPTS[@]}" "${SSH_USER}@${HOST}" \
-  "SERVICE_NAME='$SERVICE_NAME' REMOTE_JAR='$REMOTE_JAR' REMOTE_TMP='$REMOTE_TMP' SPRING_PROFILE='$SPRING_PROFILE' CADDY_KIND='$CADDY_KIND' API_DOMAIN='$API_DOMAIN' ANALYTICS_DOMAIN='$ANALYTICS_DOMAIN' ADMIN_DOMAIN='$ADMIN_DOMAIN' bash -s" <<'REMOTE_SCRIPT'
+  "SERVICE_NAME='$SERVICE_NAME' REMOTE_JAR='$REMOTE_JAR' REMOTE_TMP='$REMOTE_TMP' SPRING_PROFILE='$SPRING_PROFILE' CADDY_KIND='$CADDY_KIND' JAVA_OPTS='$JAVA_OPTS' API_DOMAIN='$API_DOMAIN' ANALYTICS_DOMAIN='$ANALYTICS_DOMAIN' ADMIN_DOMAIN='$ADMIN_DOMAIN' bash -s" <<'REMOTE_SCRIPT'
 set -euo pipefail
 
 install_caddy_if_missing() {
@@ -216,7 +218,7 @@ Type=simple
 User=root
 WorkingDirectory=/app
 Environment=TZ=Asia/Shanghai
-ExecStart=/usr/bin/env java -Xms128m -Xmx256m -jar ${REMOTE_JAR} --spring.profiles.active=${SPRING_PROFILE}
+ExecStart=/usr/bin/env java ${JAVA_OPTS} -jar ${REMOTE_JAR} --spring.profiles.active=${SPRING_PROFILE}
 Restart=on-failure
 RestartSec=5
 SuccessExitStatus=143
