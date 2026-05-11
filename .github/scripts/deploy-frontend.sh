@@ -86,7 +86,7 @@ http://${ANALYTICS_DOMAIN} {
     reverse_proxy 127.0.0.1:8080
 }
 
-http://${ADMIN_DOMAIN} {
+${ADMIN_DOMAIN} {
     root * /app/ug-ads-vue
     encode gzip
 

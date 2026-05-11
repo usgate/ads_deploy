@@ -42,7 +42,7 @@
 请确认私有 `ug-ads` 仓库中 `ug-ads-vue/.env.production` 配置为：
 
 ```env
-VITE_API_BASE_URL=http://ads.299188.xyz/ug-ads
+VITE_API_BASE_URL=https://ads.299188.xyz/ug-ads
 ```
 
 ## Workflow 说明
