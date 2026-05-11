@@ -8,7 +8,7 @@ HOST="${ANALYTICS_HOST:-}"
 PORT="${ANALYTICS_SSH_PORT:-22}"
 KEY="${ANALYTICS_SSH_PRIVATE_KEY:-}"
 ANALYTICS_DOMAIN="${ANALYTICS_DOMAIN:-analytics.edgepulse.top}"
-ADMIN_DOMAIN="${ADMIN_DOMAIN:-ad.520531.xyz}"
+ADMIN_DOMAIN="${ADMIN_DOMAIN:-ads.299188.xyz}"
 
 if [ -z "$HOST" ]; then
   echo "ANALYTICS_HOST is required." >&2

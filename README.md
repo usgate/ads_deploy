@@ -17,15 +17,15 @@
 ### Analytics + 后台服务器
 
 - App Analytics 域名：`analytics.edgepulse.top`
-- 后台域名：`ad.520531.xyz`
+- 后台域名：`ads.299188.xyz`
 - systemd 服务：`ug-ads-analytics.service`
 - Jar 路径：`/app/ug-ads-analytics.jar`
 - Spring Profile：`analytics`
 - 前端静态目录：`/app/ug-ads-vue`
 - Caddy 行为：
   - `analytics.edgepulse.top` 的所有请求都会改写到 `/ug-ads/api/open/dispatch`，再转发到本机 `127.0.0.1:8080`。
-  - `ad.520531.xyz` 用于 HTTP 访问后台前端页面。
-  - `ad.520531.xyz/ug-ads/*` 直接转发到 analytics 后端，用于后台明文管理 API。
+  - `ads.299188.xyz` 用于 HTTP 访问后台前端页面。
+  - `ads.299188.xyz/ug-ads/*` 直接转发到 analytics 后端，用于后台明文管理 API。
 
 所有 Caddy 站点都显式使用 `http://`。App 对外 HTTPS 由 Cloudflare 提供，源站不在本部署脚本中配置 HTTPS，也不维护 ACME 证书。
 
@@ -33,7 +33,7 @@
 
 - `api.edgepulse.top` 和 `analytics.edgepulse.top` 建议开启 Cloudflare 代理。
 - Cloudflare 对外提供 HTTPS，但回源使用 HTTP。
-- `ad.520531.xyz` 用于后台管理，建议使用 DNS only 或保证可以通过普通 HTTP 直连访问。
+- `ads.299188.xyz` 用于后台管理，建议使用 DNS only 或保证可以通过普通 HTTP 直连访问。
 
 ## 前端配置要求
 
@@ -42,7 +42,7 @@
 请确认私有 `ug-ads` 仓库中 `ug-ads-vue/.env.production` 配置为：
 
 ```env
-VITE_API_BASE_URL=http://ad.520531.xyz/ug-ads
+VITE_API_BASE_URL=http://ads.299188.xyz/ug-ads
 ```
 
 ## Workflow 说明

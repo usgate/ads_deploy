@@ -7,7 +7,7 @@ JAR_FILE="${2:?jar file is required}"
 SSH_USER="${SSH_USER:-root}"
 API_DOMAIN="${API_DOMAIN:-api.edgepulse.top}"
 ANALYTICS_DOMAIN="${ANALYTICS_DOMAIN:-analytics.edgepulse.top}"
-ADMIN_DOMAIN="${ADMIN_DOMAIN:-ad.520531.xyz}"
+ADMIN_DOMAIN="${ADMIN_DOMAIN:-ads.299188.xyz}"
 
 case "$TARGET" in
   api)
