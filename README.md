@@ -24,16 +24,18 @@
 - 前端静态目录：`/app/ug-ads-vue`
 - Caddy 行为：
   - `analytics.edgepulse.top` 的所有请求都会改写到 `/ug-ads/api/open/dispatch`，再转发到本机 `127.0.0.1:8080`。
-  - `ads.299188.xyz` 用于 HTTP 访问后台前端页面。
-  - `ads.299188.xyz/ug-ads/*` 直接转发到 analytics 后端，用于后台明文管理 API。
+  - `ads.299188.xyz` 用于 HTTPS 直连访问后台前端页面，不经过 Cloudflare 代理。
+  - `ads.299188.xyz/ug-ads/*` 直接转发到 analytics 后端，用于后台管理 API。
 
-所有 Caddy 站点都显式使用 `http://`。App 对外 HTTPS 由 Cloudflare 提供，源站不在本部署脚本中配置 HTTPS，也不维护 ACME 证书。
+App API 域名显式使用 `http://`，对外 HTTPS 由 Cloudflare 提供，源站不维护这些 App 域名的 ACME 证书。后台域名 `ads.299188.xyz` 由 Caddy 直连提供 HTTPS，并由 Caddy 自动申请和续期证书。
+
+部署脚本只在 `/etc/caddy/Caddyfile` 不存在时初始化一份最小配置。如果该文件已经存在，自动部署不会修改、格式化或覆盖 Caddyfile，后续站点、域名和路由由人工维护。
 
 ## Cloudflare 配置
 
 - `api.edgepulse.top` 和 `analytics.edgepulse.top` 建议开启 Cloudflare 代理。
 - Cloudflare 对外提供 HTTPS，但回源使用 HTTP。
-- `ads.299188.xyz` 用于后台管理，建议使用 DNS only 或保证可以通过普通 HTTP 直连访问。
+- `ads.299188.xyz` 用于后台管理，使用 DNS only，直接解析到 analytics/admin 服务器，由源站 Caddy 提供 HTTPS 证书。
 
 ## 前端配置要求
 
@@ -62,8 +64,9 @@ VITE_API_BASE_URL=https://ads.299188.xyz/ug-ads
 - 使用对应 Maven profile 构建 `ug-ads-boot`
 - 上传 jar 到目标服务器
 - 初始化或更新对应 systemd 服务
-- 初始化或更新目标服务器 Caddyfile
-- 重启对应后端服务并 reload Caddy
+- 如果目标服务器没有 `/etc/caddy/Caddyfile`，初始化一份最小 Caddyfile
+- 如果目标服务器已经存在 `/etc/caddy/Caddyfile`，跳过 Caddyfile 修改，由人工维护内容
+- 重启对应后端服务，并在不影响部署结果的前提下尝试 reload Caddy
 
 ### Deploy Frontend
 
@@ -78,8 +81,9 @@ VITE_API_BASE_URL=https://ads.299188.xyz/ug-ads
 - 拉取私有 `ug-ads` 仓库
 - 在 `ug-ads-vue` 中执行 `npm ci` 和 `npm run build`
 - 将 `dist` 上传到 analytics/admin 服务器的 `/app/ug-ads-vue`
-- 初始化或更新 analytics/admin 服务器 Caddyfile
-- reload Caddy
+- 如果 analytics/admin 服务器没有 `/etc/caddy/Caddyfile`，初始化一份最小 Caddyfile
+- 如果 analytics/admin 服务器已经存在 `/etc/caddy/Caddyfile`，跳过 Caddyfile 修改，由人工维护内容
+- 在不影响部署结果的前提下尝试 reload Caddy
 
 ## 必需 Secrets
 
@@ -110,12 +114,14 @@ VITE_API_BASE_URL=https://ads.299188.xyz/ug-ads
 - 部署目录为 `/app`
 - workflow 会在 Debian / Ubuntu 服务器上自动安装 Caddy
 - 如果服务器不是 Debian / Ubuntu，需要提前手动安装 Caddy
+- 已存在的 `/etc/caddy/Caddyfile` 由人工维护，自动部署不会覆盖
 
 建议防火墙：
 
 - 对外开放 `80`
+- 如果 `ads.299188.xyz` 由源站 Caddy 提供 HTTPS，需要对外开放 `443`
 - 尽量不要对外开放 `8080`，让 `8080` 只被本机 Caddy 访问
-- App 侧 HTTPS 由 Cloudflare 提供，不由源站 Caddy 提供
+- App 侧 HTTPS 由 Cloudflare 提供，不由源站 Caddy 提供；后台域名 `ads.299188.xyz` 的 HTTPS 由源站 Caddy 提供
 
 ## 手动部署步骤
 

@@ -77,8 +77,13 @@ install_caddy_if_missing() {
   exit 1
 }
 
-write_caddyfile() {
+initialize_caddyfile_if_missing() {
   mkdir -p /etc/caddy
+  if [ -f /etc/caddy/Caddyfile ]; then
+    echo "/etc/caddy/Caddyfile already exists; skip automatic Caddyfile changes."
+    return 1
+  fi
+
   cat > /etc/caddy/Caddyfile <<EOF
 http://${ANALYTICS_DOMAIN} {
     encode gzip
@@ -115,10 +120,20 @@ fi
 mv /app/ug-ads-vue.new /app/ug-ads-vue
 
 install_caddy_if_missing
-write_caddyfile
-caddy fmt --overwrite /etc/caddy/Caddyfile >/dev/null 2>&1 || true
-systemctl enable --now caddy
-systemctl reload caddy || systemctl restart caddy
+if initialize_caddyfile_if_missing; then
+  CADDYFILE_INITIALIZED=1
+  caddy fmt --overwrite /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+else
+  CADDYFILE_INITIALIZED=0
+fi
+
+if [ "$CADDYFILE_INITIALIZED" = "1" ]; then
+  systemctl enable --now caddy
+  systemctl reload caddy || systemctl restart caddy
+else
+  systemctl enable caddy >/dev/null 2>&1 || true
+  systemctl reload caddy || echo "Caddy reload failed; existing Caddyfile is maintained manually, so frontend deploy continues."
+fi
 REMOTE_SCRIPT
 
 echo "Deployed frontend to $HOST"
