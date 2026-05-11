@@ -101,6 +101,21 @@ install_caddy_if_missing() {
   exit 1
 }
 
+install_curl_if_missing() {
+  if command -v curl >/dev/null 2>&1; then
+    return
+  fi
+
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update
+    apt-get install -y curl
+    return
+  fi
+
+  echo "curl is not installed and automatic install only supports Debian/Ubuntu with apt-get." >&2
+  exit 1
+}
+
 initialize_caddyfile_if_missing() {
   mkdir -p /etc/caddy
   if [ -f /etc/caddy/Caddyfile ]; then
@@ -141,7 +156,50 @@ EOF
   fi
 }
 
+wait_for_backend_ready() {
+  local max_attempts=30
+  local attempt=1
+
+  while [ "$attempt" -le "$max_attempts" ]; do
+    if [ "$(curl -fsS --max-time 2 http://127.0.0.1:8080/ug-ads/api/open/ping 2>/dev/null || true)" = "pong" ]; then
+      return 0
+    fi
+
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+
+  return 1
+}
+
+print_service_logs() {
+  journalctl -u "$SERVICE_NAME" -n 100 --no-pager || true
+}
+
+rollback_backend() {
+  if [ -f "$BACKUP_JAR" ]; then
+    echo "Rolling back $SERVICE_NAME to previous jar: $BACKUP_JAR"
+    cp -f "$BACKUP_JAR" "$REMOTE_JAR"
+    chmod 0644 "$REMOTE_JAR"
+    systemctl restart "$SERVICE_NAME" || true
+
+    if wait_for_backend_ready; then
+      echo "Rollback succeeded; previous version is healthy."
+    else
+      echo "Rollback failed; previous version did not become healthy."
+      print_service_logs
+    fi
+  else
+    echo "No backup jar found at $BACKUP_JAR; cannot rollback."
+  fi
+}
+
 mkdir -p /app
+BACKUP_JAR="${REMOTE_JAR}.bak"
+if [ -f "$REMOTE_JAR" ]; then
+  cp -f "$REMOTE_JAR" "$BACKUP_JAR"
+fi
+
 mv "$REMOTE_TMP" "$REMOTE_JAR"
 chmod 0644 "$REMOTE_JAR"
 
@@ -174,8 +232,21 @@ else
 fi
 
 systemctl daemon-reload
-systemctl enable --now "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
+systemctl enable "$SERVICE_NAME"
+install_curl_if_missing
+if ! systemctl restart "$SERVICE_NAME"; then
+  echo "$SERVICE_NAME failed to restart after deployment."
+  print_service_logs
+  rollback_backend
+  exit 1
+fi
+
+if ! wait_for_backend_ready; then
+  echo "$SERVICE_NAME failed to become healthy after deployment."
+  print_service_logs
+  rollback_backend
+  exit 1
+fi
 
 if [ "$CADDYFILE_INITIALIZED" = "1" ]; then
   systemctl enable --now caddy
